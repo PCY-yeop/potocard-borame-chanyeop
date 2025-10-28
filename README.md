@@ -1,1 +1,1 @@
-# potocard-borame-chanyeop
+# photocard-geomdan
