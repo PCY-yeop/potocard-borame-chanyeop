@@ -48,7 +48,7 @@ document.addEventListener('click', (e) => {
 });
 
 
-const SITE_NAME = '검단 센트레빌';
+const SITE_NAME = '보라매 파르크힐';
 
     document.addEventListener('DOMContentLoaded', function () {
       /* ===== 날짜: flatpickr 유지 ===== */
