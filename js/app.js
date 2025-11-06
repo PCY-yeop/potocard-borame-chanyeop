@@ -48,90 +48,144 @@ document.addEventListener('click', (e) => {
 });
 
 
-const SITE_NAME = '보라매 파르크힐';
-
-    document.addEventListener('DOMContentLoaded', function () {
-      /* ===== 날짜: flatpickr 유지 ===== */
-      flatpickr("#visit-date", {
-        locale:"ko",
-        dateFormat:"Y-m-d",
-        defaultDate:new Date(),
-        disableMobile:true
-      });
-
-      /* ===== 시간: 커스텀 드롭다운 ===== */
-      const timeWrap   = document.querySelector('.time-wrap');
-      const dispInput  = document.getElementById('visit-time-display'); // 화면표시(읽기전용)
-      const hiddenTime = document.getElementById('visit-time');         // 서버전송값(HH:mm)
-      const dd         = document.getElementById('time-dropdown');
-
-      const openDD  = () => { dd.classList.add('open'); dispInput.setAttribute('aria-expanded','true'); };
-      const closeDD = () => { dd.classList.remove('open'); dispInput.setAttribute('aria-expanded','false'); };
-
-      dispInput.addEventListener('click', (e)=>{ e.stopPropagation(); dd.classList.toggle('open'); dispInput.setAttribute('aria-expanded', dd.classList.contains('open')); });
-
-      dd.addEventListener('click', (e)=>{
-        const btn = e.target.closest('.slot'); if(!btn) return;
-        dd.querySelectorAll('.slot').forEach(s=>s.removeAttribute('aria-selected'));
-        btn.setAttribute('aria-selected','true');
-        dispInput.value = btn.textContent.trim();
-        hiddenTime.value = btn.dataset.value; // "HH:mm"
-        closeDD();
-      });
-
-      // 키보드 접근성
-      dd.addEventListener('keydown', (e)=>{
-        const items = [...dd.querySelectorAll('.slot')];
-        const idx = items.indexOf(document.activeElement);
-        if(e.key==='ArrowDown'){ e.preventDefault(); (items[idx+1]||items[0]).focus(); }
-        if(e.key==='ArrowUp'){ e.preventDefault(); (items[idx-1]||items[items.length-1]).focus(); }
-        if(e.key==='Enter' || e.key===' '){ e.preventDefault(); document.activeElement.click(); }
-        if(e.key==='Escape'){ closeDD(); dispInput.focus(); }
-      });
-
-      // 외부 클릭 닫기
-      document.addEventListener('click', (e)=>{ if(!timeWrap.contains(e.target)) closeDD(); });
-
-      /* ===== 폼 전송 ===== */
-      const form = document.getElementById('reservation');
-      const submitBtn = document.getElementById('submitBtn');
-      const checkbox = document.querySelector('.form-contents-privacy-checkbox');
-      const visitDateInput = document.getElementById('visit-date');
-
-      const toggleSubmit = () => { submitBtn.disabled = !checkbox.checked; };
-      checkbox.addEventListener('change', toggleSubmit); toggleSubmit();
-
-      const normalizePhone = (val) => (val||'').replace(/[^\d]/g,'');
-      const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
-
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if(!checkbox.checked){ alert('개인정보 수집 및 이용에 동의해야 합니다.'); return; }
-
-        const name  = form.elements.name.value.trim();
-        const phone = normalizePhone(form.elements.phone.value);
-        const vd    = visitDateInput.value.trim();
-        const vt    = hiddenTime.value.trim(); // 선택한 시작시각 "HH:mm"
-
-        if(!name){ alert('성함을 입력해 주세요.'); return; }
-        if(!(phone.length===10 || phone.length===11)){ alert('연락처를 정확히 입력해 주세요.'); return; }
-        if(!vd){ alert('방문일을 선택해 주세요.'); return; }
-        if(!vt){ alert('방문 시간을 선택해 주세요.'); return; }
-
-        const taggedName = `[${SITE_NAME}] ${name}`;
-        const base = 'https://iudczcnhxfxquxkfckpiwumkai0fvjjb.lambda-url.ap-northeast-2.on.aws/';
-        const params = new URLSearchParams({ name: taggedName, phone, vd, vt, sp:'01022844859', site:SITE_NAME });
-        const url = `${base}?${params.toString()}`;
-
-        submitBtn.disabled = true;
-        const prev = submitBtn.textContent; submitBtn.textContent = '전송 중…';
-        try{ fetch(url,{method:'GET',mode:'no-cors',keepalive:true}).catch(()=>{});}catch(_){}
-        await sleep(400);
-        alert(`${name}님, 방문예약이 접수되었습니다!`);
-        form.reset(); hiddenTime.value=''; dispInput.value='';
-        submitBtn.textContent = prev; toggleSubmit();
-      });
-    });
+// 폼
+      const SITE_NAME   = "보라매";
+      const API_BASE    = "https://solapi-backend.onrender.com";
+      const ADMIN_PHONE = "01022844859";
+      // ← 여기에만 번호 넣으면 됨
+      
+      document.addEventListener('DOMContentLoaded', function () {
+        /* === 날짜 === */
+        flatpickr("#visit-date", {
+          locale:"ko", dateFormat:"Y-m-d", defaultDate:new Date(), disableMobile:true
+        }
+                 );
+        /* === 시간 드롭다운 === */
+        const timeWrap   = document.querySelector('.time-wrap');
+        const dispInput  = document.getElementById('visit-time-display');
+        // ex) "10:00 ~ 11:00"
+        const hiddenTime = document.getElementById('visit-time');
+        // ex) "10:00"
+        const dd         = document.getElementById('time-dropdown');
+        const showDD  = ()=>{
+          dd.classList.add('open');
+          dispInput.setAttribute('aria-expanded','true');
+        }
+        const hideDD  = ()=>{
+          dd.classList.remove('open');
+          dispInput.setAttribute('aria-expanded','false');
+        }
+        dispInput.addEventListener('click', e=>{
+          e.stopPropagation();
+          dd.classList.toggle('open');
+        }
+                                  );
+        dd.addEventListener('click', e=>{
+          const btn = e.target.closest('.slot');
+          if(!btn) return;
+          dd.querySelectorAll('.slot').forEach(s=>s.removeAttribute('aria-selected'));
+          btn.setAttribute('aria-selected','true');
+          dispInput.value  = btn.textContent.trim();
+          hiddenTime.value = btn.dataset.value;
+          hideDD();
+        }
+                           );
+        document.addEventListener('click', e=>{
+          if(!timeWrap.contains(e.target)) hideDD();
+        }
+                                 );
+        /* === 폼 전송 === */
+        const form       = document.getElementById('reservation');
+        const submitBtn  = document.getElementById('submitBtn');
+        const checkbox   = document.querySelector('.form-contents-privacy-checkbox');
+        const dateInput  = document.getElementById('visit-date');
+        const normalizePhone = v => (v||'').replace(/[^\d]/g,'');
+        const sleep = ms => new Promise(r=>setTimeout(r,ms));
+        checkbox.addEventListener('change', ()=> {
+          submitBtn.disabled = !checkbox.checked;
+        }
+                                 );
+        form.addEventListener('submit', async e=>{
+          e.preventDefault();
+          if(!checkbox.checked){
+            alert("개인정보 수집 및 이용에 동의해야 합니다.");
+            return;
+          }
+          const name    = form.elements.name.value.trim();
+          const phone   = normalizePhone(form.elements.phone.value);
+          const vd      = dateInput.value.trim();
+          const vt      = hiddenTime.value.trim();
+          const vtLabel = dispInput.value.trim();
+          const admin   = normalizePhone(ADMIN_PHONE);
+          if(!name){
+            alert("성함을 입력해 주세요.");
+            return;
+          }
+          if(!(phone.length === 10 || phone.length === 11)){
+            alert("연락처를 정확히 입력해 주세요.");
+            return;
+          }
+          if(!vd){
+            alert("방문일을 선택해 주세요.");
+            return;
+          }
+          if(!vt){
+            alert("방문 시간을 선택해 주세요.");
+            return;
+          }
+          const payload = {
+            site: SITE_NAME,
+            vd,
+            vtLabel,
+            name, 
+            phone,      // 고객 번호 → 문자 X (백엔드에서 알림본문에만 씀)
+            sp: admin,  // 실제 문자 수신 대상
+            memo: ""
+          };
+          submitBtn.disabled = true;
+          const prev = submitBtn.textContent;
+          submitBtn.textContent = "전송 중…";
+          try {
+            const res = await fetch(`${API_BASE}/sms`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json" }
+              ,
+              body: JSON.stringify(payload)
+            }
+                                   );
+            // text 먼저 받기
+            const txt = await res.text();
+            let data;
+            try {
+              data = JSON.parse(txt);
+            }
+            catch {
+              data = {
+                ok:false, error:`HTTP ${res.status}${res.statusText}/ ${txt}` };
+            }
+            if(!res.ok || !data.ok){
+              throw new Error(data.error || `HTTP ${res.status}`);
+            }
+            await sleep(200);
+            alert(`${name}님, 방문예약 요청이 전송되었습니다!`);
+            form.reset();
+            hiddenTime.value = '';
+            dispInput.value  = '';
+          }
+          catch(err){
+            alert(`전송 실패: ${String(err.message)}`);
+            console.error(err);
+          }
+          finally{
+            submitBtn.textContent = prev;
+            submitBtn.disabled = !checkbox.checked;
+          }
+        }
+                             );
+      }
+                               );
+// 여기까지
 
 
 (function(){
