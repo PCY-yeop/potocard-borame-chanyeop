@@ -50,7 +50,7 @@ document.addEventListener('click', (e) => {
 
 // 폼
 
-const SITE_NAME   = "보라매 파르크힐";
+const SITE_NAME   = "보라매";
 const API_BASE    = "https://solapi-backend.onrender.com";
 const ADMIN_PHONE = "01022844859"; // 문자 수신자(to)
 
